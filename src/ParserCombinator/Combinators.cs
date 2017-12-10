@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
-using System.Net.Mime;
+using System.Linq;
 using static ParserCombinator.ParseResultHelper;
 
 namespace ParserCombinator
@@ -90,5 +90,13 @@ namespace ParserCombinator
                     ? Success(result.Source, mapper(result.Result))
                     : Failed<TResult>(result.Source, result.Reason);
             };
+
+        public static Parser<string> AsString(this Parser<ImmutableList<string>> parser) =>
+            parser.Map(strings => string.Join(string.Empty, strings));
+
+        public static Parser<string> AsString(this Parser<ImmutableList<char>> parser) =>
+            parser.Map(chars => new string(chars.ToArray()));
+        
+        
     }
 }
