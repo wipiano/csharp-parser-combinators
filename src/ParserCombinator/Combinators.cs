@@ -96,7 +96,20 @@ namespace ParserCombinator
 
         public static Parser<string> AsString(this Parser<ImmutableList<char>> parser) =>
             parser.Map(chars => new string(chars.ToArray()));
-        
-        
+
+        public static Parser<ImmutableList<T>> AtLeastOne<T>(this Parser<T> parser)
+        {
+            ParseResult<ImmutableList<T>> Impl(Source source, ImmutableList<T> results, bool isFirst = false)
+            {
+                var result = parser(source);
+                return result.IsSuccess
+                    ? Impl(result.Source, results.Add(result.Result))
+                    : isFirst
+                        ? Failed<ImmutableList<T>>(result.Source, result.Reason)
+                        : Success(source, results);
+            }
+
+            return (Source s) => Impl(s, ImmutableList<T>.Empty, true);
+        }
     }
 }
