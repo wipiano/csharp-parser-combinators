@@ -33,22 +33,22 @@ namespace ParserCombinator.Tests
         [Fact]
         public void PostalCodeParserTest()
         {
-// xxx-yyyy の xxx 部分
-Parser<int> leftPart = Digit.Repeat(3).Map(chars => int.Parse(new string(chars.ToArray())));
-
-// xxx-yyyy の yyyy 部分
-Parser<int> rightPart = Digit.Repeat(4).Map(chars => int.Parse(new string(chars.ToArray())));
-
-// 普通の xxx-yyyy
-Parser<PostalCode> normal = leftPart.Left(Literal('-')).Sequence(rightPart, (l, r) => new PostalCode(l, r));
-
-// xxxyyyy
-Parser<PostalCode> withoutSeparator = leftPart.Sequence(rightPart, (l, r) => new PostalCode(l, r));
-
-Parser<PostalCode> postalCode = normal.Or(withoutSeparator);
-
-// 〒 が付加されてもよい
-Parser<PostalCode> postalCodeParser = Literal('〒').Right(postalCode).Or(postalCode);
+            // xxx-yyyy の xxx 部分
+            Parser<int> leftPart = Digit.Repeat(3).Map(chars => int.Parse(new string(chars.ToArray())));
+            
+            // xxx-yyyy の yyyy 部分
+            Parser<int> rightPart = Digit.Repeat(4).Map(chars => int.Parse(new string(chars.ToArray())));
+            
+            // 普通の xxx-yyyy
+            Parser<PostalCode> normal = leftPart.Left(Literal('-')).Sequence(rightPart, (l, r) => new PostalCode(l, r));
+            
+            // xxxyyyy
+            Parser<PostalCode> withoutSeparator = leftPart.Sequence(rightPart, (l, r) => new PostalCode(l, r));
+            
+            Parser<PostalCode> postalCode = normal.Or(withoutSeparator);
+            
+            // 〒 が付加されてもよい
+            Parser<PostalCode> postalCodeParser = Literal('〒').Right(postalCode).Or(postalCode);
             
             var expected = new PostalCode(123, 4567);
             postalCodeParser(Source.Create("123-4567")).Result.IsStructuralEqual(expected);
