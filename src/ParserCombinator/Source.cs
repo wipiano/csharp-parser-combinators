@@ -75,5 +75,8 @@ namespace ParserCombinator
                 this.Source = source;
             }
         }
+
+        public static implicit operator Source(string s) => Create(s);
+        public static implicit operator string(Source s) => s._source;
     }
 }
