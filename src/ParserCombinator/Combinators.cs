@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.IO.MemoryMappedFiles;
 using System.Linq;
 using static ParserCombinator.ParseResultHelper;
 
@@ -41,11 +42,45 @@ namespace ParserCombinator
             return (Source s) => Impl(s, count, ImmutableList<T>.Empty);
         }
 
+        public static Parser<ImmutableList<T>> Repeat<T>(this Parser<T> parser, int count, Parser<string> separator)
+        {
+            ParseResult<ImmutableList<T>> Impl(Source s, int c, ImmutableList<T> results, bool isFirst)
+            {
+                if (c == 0)
+                {
+                    // 0 回を指定されたらおわり
+                    return Success(s, results);
+                }
+                
+                if (!isFirst)
+                {
+                    if (!separator.TryParse(s, out var separatorResult))
+                    {
+                        return Failed<ImmutableList<T>>(separatorResult.Source, separatorResult.Reason);
+                    }
+
+                    s = separatorResult.Source;
+                }
+
+                return parser.TryParse(s, out var result)
+                    ? Impl(result.Source, c - 1, results.Add(result.Result), false)
+                    : Failed<ImmutableList<T>>(result.Source, result.Reason);
+            }
+
+            return source => Impl(source, count, ImmutableList<T>.Empty, true);
+        }
+
         public static Parser<ImmutableList<T>> Sequence<T>(this Parser<T> first, Parser<T> second) =>
             first.Sequence(second, (f, s) => ImmutableList<T>.Empty.Add(f).Add(s));
 
         public static Parser<ImmutableList<T>> Sequence<T>(this Parser<ImmutableList<T>> first, Parser<T> second) =>
             first.Sequence(second, (f, s) => f.Add(s));
+
+        public static Parser<ImmutableList<T>> Sequence<T>(this Parser<ImmutableList<T>> first,
+            Parser<ImmutableList<T>> second) => first.Sequence(second, (f, s) => f.AddRange(s));
+
+        public static Parser<ImmutableList<T>> Sequence<T>(this Parser<T> first, Parser<ImmutableList<T>> second)
+            => first.Sequence(second, (f, s) => ImmutableList<T>.Empty.Add(f).AddRange(s));
 
         public static Parser<TResult> Sequence<TFirst, TSecond, TResult>(this Parser<TFirst> first,
             Parser<TSecond> second, Func<TFirst, TSecond, TResult> resultSelector) =>
@@ -91,11 +126,14 @@ namespace ParserCombinator
                     : Failed<TResult>(result.Source, result.Reason);
             };
 
-        public static Parser<string> AsString(this Parser<ImmutableList<string>> parser) =>
-            parser.Map(strings => string.Join(string.Empty, strings));
-
-        public static Parser<string> AsString(this Parser<ImmutableList<char>> parser) =>
-            parser.Map(chars => new string(chars.ToArray()));
+        public static Parser<TValue> Value<TParser, TValue>(this Parser<TParser> parser, TValue value) =>
+            (Source s) =>
+            {
+                var result = parser(s);
+                return result.IsSuccess
+                    ? Success(result.Source, value)
+                    : Failed<TValue>(result.Source, result.Reason);
+            };
 
         public static Parser<ImmutableList<T>> AtLeastOne<T>(this Parser<T> parser)
         {
@@ -111,5 +149,7 @@ namespace ParserCombinator
 
             return (Source s) => Impl(s, ImmutableList<T>.Empty, true);
         }
+
+        public static Parser<T> Lazy<T>(Func<Parser<T>> factory) => s => factory()(s);
     }
 }
